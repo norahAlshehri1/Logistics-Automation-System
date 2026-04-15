@@ -74,4 +74,3 @@ The frontend interface will be available at `http://localhost:5173`.
 * **Maha Alnafea** — 2230003005 (Frontend & UI/UX)
 
 ```
-```
