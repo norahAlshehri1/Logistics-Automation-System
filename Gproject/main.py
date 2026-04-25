@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi.middleware.cors import CORSMiddleware # تم إضافة هذا السطر الهام جداً
+from fastapi.middleware.cors import CORSMiddleware 
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 import models, schemas, auth
@@ -110,9 +110,9 @@ def upload_document(case_id: int, file: UploadFile = File(...), db: Session = De
     )
     db.add(db_doc)
     db.commit()
-    db.refresh(db_doc) # تم إضافة هذا السطر لمعرفة رقم المستند الجديد
+    db.refresh(db_doc) 
     
-    # تم تعديل الإرجاع ليتضمن رقم المستند لكي تقرأه واجهة React
+    
     return {
         "message": "Document uploaded successfully", 
         "filename": file.filename,
@@ -148,7 +148,7 @@ def extract_data_from_document(document_id: int, db: Session = Depends(get_db)):
         "extracted_data": extraction_result
     }
 
-# تعريف هيكل البيانات القادمة من الواجهة بشكل صحيح
+
 class ApprovedData(BaseModel):
     Vendor_Name: str = Field(None, alias="Vendor Name")
     Invoice_Number: str = Field(None, alias="Invoice Number")
