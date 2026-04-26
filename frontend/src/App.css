@@ -1,13 +1,13 @@
-/* --- Google Fonts --- */
+
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
-/* --- المتغيرات العامة (Variables) --- */
+
 :root {
-  --primary: #4F46E5;       /* لون أزرق نيلي حديث */
+  --primary: #4F46E5;       
   --primary-hover: #4338CA;
-  --secondary: #10B981;     /* لون أخضر للنجاح والاعتماد */
+  --secondary: #10B981;     
   --secondary-hover: #059669;
-  --bg-color: #F3F4F6;      /* خلفية رمادية فاتحة جداً */
+  --bg-color: #F3F4F6;      
   --card-bg: #FFFFFF;
   --text-dark: #1F2937;
   --text-light: #6B7280;
@@ -18,7 +18,7 @@
   --radius: 12px;
 }
 
-/* --- الإعدادات الأساسية --- */
+
 * {
   box-sizing: border-box;
   font-family: 'Poppins', sans-serif;
@@ -32,7 +32,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* --- الحاوية الرئيسية --- */
+
 .app-container {
   display: flex;
   flex-direction: column;
@@ -40,7 +40,7 @@ body {
   overflow: hidden;
 }
 
-/* --- الرأس (Header) --- */
+
 .header {
   background: var(--card-bg);
   padding: 1rem 2rem;
@@ -69,13 +69,13 @@ body {
   transition: all 0.3s ease;
 }
 
-/* تغيير لون شريط الحالة عند النجاح */
+
 .status-bar:contains("Successfully"), .status-bar:contains("✅") {
   background: #D1FAE5;
   color: #065F46;
 }
 
-/* --- محتوى العرض المزدوج (Side-by-Side) --- */
+
 .main-content {
   display: flex;
   flex: 1;
@@ -104,7 +104,7 @@ h2 {
   padding-bottom: 10px;
 }
 
-/* خط تزييني تحت العناوين */
+
 h2::after {
   content: '';
   position: absolute;
@@ -116,7 +116,7 @@ h2::after {
   border-radius: 3px;
 }
 
-/* --- نموذج الرفع --- */
+
 .upload-form {
   display: flex;
   flex-direction: column;
@@ -164,16 +164,16 @@ h2::after {
   transform: translateY(0);
 }
 
-/* --- عارض الـ PDF --- */
+
 .pdf-viewer {
   width: 100%;
   flex: 1;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: #e5e5e5; /* خلفية افتراضية في حال تأخر التحميل */
+  background: #e5e5e5; 
 }
 
-/* --- نموذج المراجعة والتعديل (Form) --- */
+
 .form-container {
   display: flex;
   flex-direction: column;
@@ -212,12 +212,12 @@ h2::after {
   outline: none;
   border-color: var(--primary);
   background-color: white;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); /* هالة زرقاء خفيفة عند التحديد */
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); 
 }
 
-/* --- زر الاعتماد والحفظ --- */
+
 .approve-btn {
-  margin-top: auto; /* لدفعه لأسفل الشاشة */
+  margin-top: auto; 
   background: var(--secondary);
   color: white;
   border: none;
@@ -251,7 +251,7 @@ h2::after {
   opacity: 0.7;
 }
 
-/* --- شريط تمرير أنيق (Custom Scrollbar) --- */
+
 ::-webkit-scrollbar {
   width: 6px;
 }
