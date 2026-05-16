@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import AliasGenerator, BaseModel, ConfigDict
 from datetime import datetime
 from typing import Optional
 
@@ -67,14 +67,45 @@ class ExtractedFieldResponse(BaseModel):
         from_attributes = True
 
 
+def _space_alias(field_name: str) -> str:
+    """Convert ``Vendor_Name`` → ``Vendor Name`` for JSON wire compatibility."""
+    return field_name.replace("_", " ")
+
+
 class ApprovedData(BaseModel):
-    Vendor_Name: Optional[str] = Field(None, alias="Vendor Name")
-    Invoice_Number: Optional[str] = Field(None, alias="Invoice Number")
-    Shipment_Date: Optional[str] = Field(None, alias="Shipment Date")
-    Total_Amount: Optional[str] = Field(None, alias="Total Amount")
+    # Sprint 5: use an AliasGenerator on the model config. Pydantic 2.13
+    # raises UnsupportedFieldAttributeWarning when `alias=` is applied to
+    # `Optional[str]` fields directly; the generator approach is the
+    # supported idiom that produces the same wire format ("Vendor Name",
+    # "Invoice Number", ...).
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=AliasGenerator(
+            validation_alias=_space_alias,
+            serialization_alias=_space_alias,
+        ),
+    )
+
+    Vendor_Name:    Optional[str] = None
+    Invoice_Number: Optional[str] = None
+    Shipment_Date:  Optional[str] = None
+    Total_Amount:   Optional[str] = None
+
+
+# ── Sprint 4 — Audit Log ──────────────────────────────────────────────────────
+
+class AuditLogResponse(BaseModel):
+    change_id: int
+    case_id: Optional[int]
+    doc_id: Optional[int]
+    field_name: str
+    old_value: Optional[str]
+    new_value: Optional[str]
+    changed_by: Optional[int]
+    changed_at: Optional[datetime]
 
     class Config:
-        populate_by_name = True
+        from_attributes = True
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -86,3 +117,20 @@ class DashboardSummary(BaseModel):
     approved: int
     status_distribution: dict
     recent_cases: list
+
+
+# Sprint 4 — KPI tracking against proposal targets
+class KPIReport(BaseModel):
+    avg_processing_time_minutes: Optional[float]
+    processing_time_target_pct: float
+    processing_time_improvement_pct: Optional[float]
+
+    correction_rate_per_case: Optional[float]
+    correction_rate_target_pct: float
+    correction_rate_improvement_pct: Optional[float]
+
+    completeness_rate_pct: Optional[float]
+    completeness_target_pct: float
+
+    approved_documents: int
+    sample_size: int

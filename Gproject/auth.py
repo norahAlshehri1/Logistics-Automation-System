@@ -56,3 +56,26 @@ def get_current_user(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
+
+
+# Sprint 4 — Role-based access control per proposal Section 3.2 NFRs.
+# Role hierarchy: admin > staff > viewer.
+# "user" is the legacy DB default — treat it as staff for back-compat with
+# any rows created before the role column existed.
+ROLE_RANK = {"viewer": 1, "user": 2, "staff": 2, "admin": 3}
+
+
+def require_role(min_role: str):
+    """FastAPI dependency factory enforcing a minimum role."""
+    min_rank = ROLE_RANK[min_role]
+
+    def dep(current_user=Depends(get_current_user)):
+        user_role = (current_user.role or "staff").lower()
+        if ROLE_RANK.get(user_role, 0) < min_rank:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Requires role '{min_role}' or higher. Your role: '{user_role}'.",
+            )
+        return current_user
+
+    return dep

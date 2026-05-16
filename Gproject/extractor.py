@@ -190,13 +190,57 @@ def extract_arabic_fields(full_text: str, lines: list) -> dict:
 def calculate_confidence(fields: dict) -> str:
     filled = sum(
         1 for k, v in fields.items()
-        if k not in ("confidence_score", "language") and v is not None
+        if k not in ("confidence_score", "language", "field_confidence") and v is not None
     )
     if filled == 4:
         return "High"
     elif filled >= 2:
         return "Medium"
     return "Low"
+
+
+# Sprint 4 enhancement — per-field confidence (US2: "marks absent/low-confidence fields")
+# Heuristic: presence + format-soundness of the extracted value.
+def per_field_confidence(fields: dict, ocr_used: bool) -> dict:
+    """
+    Score each of the four target fields independently.
+    Levels: "High" / "Medium" / "Low" / "Missing".
+    """
+    out = {}
+    inv = fields.get("Invoice Number")
+    out["Invoice Number"] = (
+        "Missing" if not inv
+        else "High" if re.fullmatch(r"INV-\d{4}-\d{4}", inv or "")
+        else "Medium"
+    )
+
+    date = fields.get("Shipment Date")
+    if not date:
+        out["Shipment Date"] = "Missing"
+    elif re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        out["Shipment Date"] = "High"
+    elif re.fullmatch(r"\d{2}[/-]\d{2}[/-]\d{4}", date):
+        out["Shipment Date"] = "Medium"
+    else:
+        out["Shipment Date"] = "Low"
+
+    vendor = fields.get("Vendor Name")
+    if not vendor:
+        out["Vendor Name"] = "Missing"
+    elif len(vendor.strip()) < 4:
+        out["Vendor Name"] = "Low"
+    else:
+        out["Vendor Name"] = "Medium" if ocr_used else "High"
+
+    total = fields.get("Total Amount")
+    if not total:
+        out["Total Amount"] = "Missing"
+    elif re.fullmatch(r"\d[\d,]*\.\d{2}", total):
+        out["Total Amount"] = "High"
+    else:
+        out["Total Amount"] = "Medium"
+
+    return out
 
 
 # ── Main Entry Point ─────────────────────────────────────────────────────────
@@ -212,6 +256,12 @@ def extract_invoice_data(file_path: str) -> dict:
             "Total Amount": None,
             "confidence_score": "Low",
             "language": "unknown",
+            "field_confidence": {
+                "Vendor Name": "Missing",
+                "Invoice Number": "Missing",
+                "Shipment Date": "Missing",
+                "Total Amount": "Missing",
+            },
         }
 
     language = detect_language(full_text)
@@ -223,5 +273,6 @@ def extract_invoice_data(file_path: str) -> dict:
 
     fields["confidence_score"] = calculate_confidence(fields)
     fields["language"] = language
+    fields["field_confidence"] = per_field_confidence(fields, ocr_used)
 
     return fields

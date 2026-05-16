@@ -6,8 +6,13 @@ export default function ProtectedRoute({ children }) {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      <div className="boot-screen">
+        <div className="boot-brand">
+          <span className="boot-icon">📦</span>
+          <span className="boot-name">LogiFlow</span>
+        </div>
         <div className="spinner" />
+        <p className="boot-sub">Restoring session…</p>
       </div>
     );
   }

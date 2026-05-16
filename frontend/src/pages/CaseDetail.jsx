@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { NavBar, StatusBadge } from './Dashboard';
+import { TableSkeleton } from '../components/Skeleton';
 
 const STATUS_OPTIONS = ['Pending', 'In Review', 'Approved', 'Closed'];
 
@@ -10,22 +12,27 @@ export default function CaseDetail() {
   const { case_id } = useParams();
   const [caseData, setCaseData]   = useState(null);
   const [documents, setDocuments] = useState([]);
+  const [audit, setAudit]         = useState([]);          // Sprint 4
+  const [activeTab, setActiveTab] = useState('documents'); // Sprint 4: documents | audit
   const [loading, setLoading]     = useState(true);
   const [file, setFile]           = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState('');
   const [uploadErr, setUploadErr] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  const navigate = useNavigate();
+  const [exporting, setExporting] = useState('');
+  const toast = useToast();
 
   const fetchData = async () => {
     try {
-      const [caseRes, docsRes] = await Promise.all([
+      const [caseRes, docsRes, auditRes] = await Promise.all([
         axios.get(`${API_BASE}/cases/${case_id}`),
         axios.get(`${API_BASE}/cases/${case_id}/documents/`),
+        axios.get(`${API_BASE}/cases/${case_id}/audit`).catch(() => ({ data: [] })),
       ]);
       setCaseData(caseRes.data);
       setDocuments(docsRes.data);
+      setAudit(auditRes.data || []);
     } catch {
       setCaseData(null);
     } finally {
@@ -34,6 +41,30 @@ export default function CaseDetail() {
   };
 
   useEffect(() => { fetchData(); }, [case_id]);
+
+  // Sprint 4 — Export to Excel / PDF
+  const handleExport = async (kind) => {
+    setExporting(kind);
+    try {
+      const res = await axios.get(
+        `${API_BASE}/cases/${case_id}/export/${kind}`,
+        { responseType: 'blob' },
+      );
+      const ext = kind === 'excel' ? 'xlsx' : 'pdf';
+      const blob = new Blob([res.data]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `case_${case_id}_export.${ext}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`${ext.toUpperCase()} export downloaded`);
+    } catch {
+      toast.error(`Failed to export ${kind.toUpperCase()}`);
+    } finally {
+      setExporting('');
+    }
+  };
 
   const handleUpload = async (e) => {
     e.preventDefault();
@@ -52,9 +83,12 @@ export default function CaseDetail() {
       setUploadMsg(`"${res.data.filename}" uploaded successfully.`);
       setFile(null);
       e.target.reset();
+      toast.success(`Uploaded ${res.data.filename}`);
       fetchData();
     } catch (err) {
-      setUploadErr(err.response?.data?.detail || 'Upload failed');
+      const msg = err.response?.data?.detail || 'Upload failed';
+      setUploadErr(msg);
+      toast.error(msg);
     } finally {
       setUploading(false);
     }
@@ -63,10 +97,11 @@ export default function CaseDetail() {
   const handleStatusChange = async (newStatus) => {
     setUpdatingStatus(true);
     try {
-      await axios.put(`${API_BASE}/cases/${case_id}?new_status=${newStatus}`);
+      await axios.put(`${API_BASE}/cases/${case_id}?new_status=${encodeURIComponent(newStatus)}`);
       setCaseData(prev => ({ ...prev, status: newStatus }));
+      toast.success(`Status updated to "${newStatus}"`);
     } catch {
-      alert('Failed to update status');
+      toast.error('Failed to update status');
     } finally {
       setUpdatingStatus(false);
     }
@@ -75,7 +110,9 @@ export default function CaseDetail() {
   if (loading) return (
     <div className="app-container">
       <NavBar active="cases" />
-      <div className="loading-state">Loading case…</div>
+      <div className="page-content page-fade-in">
+        <TableSkeleton rows={5} cols={4} />
+      </div>
     </div>
   );
 
@@ -94,7 +131,7 @@ export default function CaseDetail() {
     <div className="app-container">
       <NavBar active="cases" />
 
-      <div className="page-content">
+      <div className="page-content page-fade-in">
         {/* Breadcrumb */}
         <div className="breadcrumb">
           <Link to="/cases">Cases</Link>
@@ -103,7 +140,7 @@ export default function CaseDetail() {
         </div>
 
         {/* Case summary card */}
-        <div className="card case-header-card">
+        <div className="card case-header-card card-fade-in">
           <div className="case-meta-grid">
             <div className="meta-item">
               <span className="meta-label">Customer</span>
@@ -155,43 +192,114 @@ export default function CaseDetail() {
           {uploadErr && <p className="msg-error">{uploadErr}</p>}
         </div>
 
-        {/* Documents table */}
+        {/* Sprint 4 — Export buttons (US4) */}
         <div className="card">
           <div className="card-header">
-            <h3 className="card-title">Documents <span className="count-pill">{documents.length}</span></h3>
+            <h3 className="card-title">Export Case</h3>
+            <span className="card-sub">Generate a standard output deliverable</span>
           </div>
-          {documents.length === 0 ? (
-            <div className="empty-state">No documents uploaded yet.</div>
-          ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Doc ID</th>
-                  <th>Filename</th>
-                  <th>Uploaded</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {documents.map(doc => (
-                  <tr key={doc.doc_id}>
-                    <td><span className="id-pill">#{doc.doc_id}</span></td>
-                    <td className="fw-medium">{doc.file_path.split('/').pop()}</td>
-                    <td className="text-muted">
-                      {doc.upload_time ? new Date(doc.upload_time).toLocaleString() : '—'}
-                    </td>
-                    <td>
-                      <Link
-                        to={`/cases/${case_id}/documents/${doc.doc_id}/review`}
-                        className="btn-sm btn-view"
-                      >
-                        Review →
-                      </Link>
-                    </td>
+          <div className="export-row">
+            <button
+              className="btn-secondary"
+              onClick={() => handleExport('excel')}
+              disabled={!!exporting}
+            >
+              {exporting === 'excel' ? 'Generating…' : '📊 Export to Excel'}
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={() => handleExport('pdf')}
+              disabled={!!exporting}
+            >
+              {exporting === 'pdf' ? 'Generating…' : '📄 Export to PDF'}
+            </button>
+          </div>
+        </div>
+
+        {/* Sprint 4 — Tabbed pane: Documents | Audit Trail */}
+        <div className="card">
+          <div className="tab-bar">
+            <button
+              className={`tab-btn ${activeTab === 'documents' ? 'active' : ''}`}
+              onClick={() => setActiveTab('documents')}
+            >
+              Documents <span className="count-pill">{documents.length}</span>
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
+              onClick={() => setActiveTab('audit')}
+            >
+              Audit Trail <span className="count-pill">{audit.length}</span>
+            </button>
+          </div>
+
+          {activeTab === 'documents' && (
+            documents.length === 0 ? (
+              <div className="empty-state">No documents uploaded yet.</div>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Doc ID</th>
+                    <th>Filename</th>
+                    <th>Uploaded</th>
+                    <th>Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {documents.map(doc => (
+                    <tr key={doc.doc_id}>
+                      <td><span className="id-pill">#{doc.doc_id}</span></td>
+                      <td className="fw-medium">{doc.file_path.split('/').pop()}</td>
+                      <td className="text-muted">
+                        {doc.upload_time ? new Date(doc.upload_time).toLocaleString() : '—'}
+                      </td>
+                      <td>
+                        <Link
+                          to={`/cases/${case_id}/documents/${doc.doc_id}/review`}
+                          className="btn-sm btn-view"
+                        >
+                          Review →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )
+          )}
+
+          {activeTab === 'audit' && (
+            audit.length === 0 ? (
+              <div className="empty-state">No changes recorded yet for this case.</div>
+            ) : (
+              <table className="data-table audit-table">
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>Doc</th>
+                    <th>Field</th>
+                    <th>Old Value</th>
+                    <th>New Value</th>
+                    <th>User</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {audit.map(a => (
+                    <tr key={a.change_id}>
+                      <td className="text-muted">
+                        {a.changed_at ? new Date(a.changed_at).toLocaleString() : '—'}
+                      </td>
+                      <td><span className="id-pill">#{a.doc_id}</span></td>
+                      <td className="fw-medium">{a.field_name}</td>
+                      <td className="audit-old">{a.old_value || '—'}</td>
+                      <td className="audit-new">{a.new_value || '—'}</td>
+                      <td className="text-muted">#{a.changed_by}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )
           )}
         </div>
       </div>

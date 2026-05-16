@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 export default function Register() {
   const [username, setUsername]   = useState('');
@@ -11,19 +12,32 @@ export default function Register() {
   const [success, setSuccess]     = useState('');
   const [loading, setLoading]     = useState(false);
   const navigate = useNavigate();
+  const toast    = useToast();
+
+  // Live password strength: 0–4
+  const strength = (() => {
+    let s = 0;
+    if (password.length >= 6) s++;
+    if (password.length >= 10) s++;
+    if (/[A-Z]/.test(password)) s++;
+    if (/[0-9]/.test(password) || /[^A-Za-z0-9]/.test(password)) s++;
+    return Math.min(4, s);
+  })();
+  const STRENGTH_LABEL = ['Too short', 'Weak', 'Fair', 'Good', 'Strong'];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!username.trim())        return setError('Username is required');
-    if (password.length < 6)     return setError('Password must be at least 6 characters');
-    if (password !== confirm)    return setError('Passwords do not match');
+    if (!username.trim())        { setError('Username is required'); return; }
+    if (password.length < 6)     { setError('Password must be at least 6 characters'); return; }
+    if (password !== confirm)    { setError('Passwords do not match'); return; }
 
     setLoading(true);
     setError('');
     try {
       await axios.post(`${API_BASE}/register/`, { username: username.trim(), password });
       setSuccess('Account created! Redirecting to login...');
-      setTimeout(() => navigate('/login'), 1500);
+      toast.success('Account created successfully');
+      setTimeout(() => navigate('/login'), 1200);
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {
@@ -33,7 +47,9 @@ export default function Register() {
 
   return (
     <div className="auth-page">
-      <div className="auth-card">
+      <div className="auth-orb auth-orb-1" />
+      <div className="auth-orb auth-orb-2" />
+      <div className="auth-card auth-card-animated">
         <div className="auth-logo">
           <span className="auth-logo-icon">📦</span>
           <h1>LogiFlow</h1>
@@ -66,6 +82,12 @@ export default function Register() {
               onChange={e => setPassword(e.target.value)}
               autoComplete="new-password"
             />
+            {password && (
+              <div className="strength-meter">
+                <div className={`strength-bar strength-${strength}`} />
+                <span className="strength-label">{STRENGTH_LABEL[strength]}</span>
+              </div>
+            )}
           </div>
           <div className="form-group">
             <label>Confirm Password</label>

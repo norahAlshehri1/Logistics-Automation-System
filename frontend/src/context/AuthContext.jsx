@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
@@ -10,23 +11,29 @@ export function AuthProvider({ children }) {
   const [token, setToken]   = useState(() => localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
-  // Restore session from localStorage on mount
+  // Restore session from localStorage on mount, then fetch /me/ for the role.
   useEffect(() => {
-    if (token) {
+    async function restore() {
+      if (!token) { setLoading(false); return; }
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = b64 + '==='.slice((b64.length + 3) % 4);
+        const payload = JSON.parse(atob(padded));
         const isExpired = payload.exp && Date.now() / 1000 > payload.exp;
-        if (isExpired) {
-          _clearSession();
-        } else {
-          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          setUser({ username: payload.sub });
-        }
+        if (isExpired) { _clearSession(); setLoading(false); return; }
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        setUser({ username: payload.sub });
+        try {
+          const res = await axios.get(`${API_BASE}/me/`);
+          setUser(res.data);  // { id, username, role }
+        } catch { /* keep partial user */ }
       } catch {
         _clearSession();
+      } finally {
+        setLoading(false);
       }
     }
-    setLoading(false);
+    restore();
   }, []);
 
   // Global 401 interceptor — auto-logout on expired token
@@ -62,8 +69,15 @@ export function AuthProvider({ children }) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
     setToken(access_token);
 
-    const payload = JSON.parse(atob(access_token.split('.')[1]));
-    setUser({ username: payload.sub });
+    try {
+      const me = await axios.get(`${API_BASE}/me/`);
+      setUser(me.data);
+    } catch {
+      const b64 = access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const padded = b64 + '==='.slice((b64.length + 3) % 4);
+      const payload = JSON.parse(atob(padded));
+      setUser({ username: payload.sub });
+    }
     return res.data;
   }
 

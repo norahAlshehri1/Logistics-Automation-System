@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -9,19 +10,22 @@ export default function Login() {
   const [loading, setLoading]   = useState(false);
   const { login }   = useAuth();
   const navigate    = useNavigate();
+  const toast       = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!username.trim()) return setError('Username is required');
-    if (!password)        return setError('Password is required');
+    if (!username.trim()) { setError('Username is required'); return; }
+    if (!password)        { setError('Password is required'); return; }
 
     setLoading(true);
     setError('');
     try {
       await login(username.trim(), password);
+      toast.success(`Welcome back, ${username.trim()}!`);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid username or password');
+      const msg = err.response?.data?.detail || 'Invalid username or password';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -29,7 +33,9 @@ export default function Login() {
 
   return (
     <div className="auth-page">
-      <div className="auth-card">
+      <div className="auth-orb auth-orb-1" />
+      <div className="auth-orb auth-orb-2" />
+      <div className="auth-card auth-card-animated">
         <div className="auth-logo">
           <span className="auth-logo-icon">📦</span>
           <h1>LogiFlow</h1>
